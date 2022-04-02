@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "46438059374",
+    "project_id": "cloudfunctiondemo-fd4cc",
+    "storage_bucket": "cloudfunctiondemo-fd4cc.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:46438059374:android:7bf1ea9a0d1339d8e1057f",
+        "android_client_info": {
+          "package_name": "com.scrollviewdemo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "46438059374-g4it6l2sjb5moqb5ne45no7if9u1a7i7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuOdLGdGWSdPBoeghVzqxpm0qZ8D30srg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "46438059374-g4it6l2sjb5moqb5ne45no7if9u1a7i7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
