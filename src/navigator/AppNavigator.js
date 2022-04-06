@@ -21,6 +21,7 @@ import HandleShareComponent from "../screens/HandleShareComponent";
 import { navigationRef } from "./NavigationService";
 import ReusbleComponentDemo from "../screens/ReusbleComponentDemo";
 import BluetoothModule from "../screens/BluetoothModule";
+import BLEDeviceService from "../screens/BLEDeviceService";
 
 const Stack = createStackNavigator();
 
@@ -51,6 +52,7 @@ function AppContainer() {
                 <Stack.Screen name="ScreenE" component={ScreenE} />
                 <Stack.Screen name="HandleShareComponent" component={HandleShareComponent} />
                 <Stack.Screen name="ReusbleComponentDemo" component={ReusbleComponentDemo} />
+                <Stack.Screen name="BLEDeviceService" component={BLEDeviceService} />
             </Stack.Navigator>
         </NavigationContainer>
     )

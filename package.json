@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@react-native-community/slider": "^4.2.1",
     "@react-native-firebase/app": "^14.3.0",
     "@react-native-firebase/auth": "^14.3.0",
     "@react-native-firebase/functions": "^14.3.0",
@@ -34,7 +35,7 @@
     "react-native-pspdfkit": "github:PSPDFKit/react-native",
     "react-native-push-notification": "^8.1.1",
     "react-native-reanimated": "2.2.4",
-    "react-native-reusable-custom-components": "/home/mindbowser/BlogProjects/CustomPackage/LiveDemo/react-native-reusable-custom-components",
+    "react-native-reusable-custom-components": "^1.0.2",
     "react-native-safe-area-context": "^3.3.2",
     "react-native-screens": "^3.10.2",
     "react-native-share-extension": "^2.0.0",

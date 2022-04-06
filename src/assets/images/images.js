@@ -7,6 +7,10 @@ const images = {
     endCallIcon: require("./endCallIcon.png"),
     turnOffVideo: require("./turnOffVideo.png"),
     microphone: require("./microphone.png"),
+    refreshIcon: require("./refreshIcon.png"),
+    smartBlubIcon: require("./smartBlubIcon.png"),
+    menuIcon: require("./menuIcon.png"),
+    helpIcon: require("./helpIcon.png"),
 }
 
 export default images;

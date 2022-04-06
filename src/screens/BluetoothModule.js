@@ -14,7 +14,7 @@ const BluetoothModule = ({
                 onPress={() => navigation.navigate("BluetoothMainScreen")}
             >
                 <Text style={styles.textInput}>
-                    {"Bluetooth Demo"}
+                    {"Go to BLE - Demo"}
                 </Text>
             </TouchableOpacity>
             {/* <TouchableOpacity style={styles.button}

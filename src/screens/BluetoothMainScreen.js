@@ -26,6 +26,11 @@ import {
 	TextInput,
 	TouchableOpacity,
 	Switch,
+	RefreshControl,
+	Image,
+	Modal,
+	ActivityIndicator,
+	ToastAndroid,
 } from 'react-native';
 
 import {
@@ -40,8 +45,12 @@ const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
 
+import { CustomHeader, CustomLoader } from "react-native-reusable-custom-components";
+import images from '../assets/images/images';
+import { useNavigation } from '@react-navigation/native';
+
 const BletoothMainScreen = (props) => {
-	console.log("Prop---->", props);
+	// console.log("Prop---->", props);
 	const [isScanning, setIsScanning] = useState(false);
 	const [message, setMessage] = useState("");
 	const [hexValue, setHexValue] = useState("");
@@ -51,11 +60,34 @@ const BletoothMainScreen = (props) => {
 	const [list, setList] = useState([]);
 	const [randomNumber, setRandom] = useState(Date.now())
 	const [isBluetoothStarted, setBluetoothtoggle] = React.useState(false);
+	const [isRefreshing, setIsRefreshing] = useState(false)
+	const [helpModalVisible, toggleHelpModal] = useState(false)
 
 	const serviceUUIDForWriteBlubColor = "ffb0"
 	const characteristicUUIDForWriteBlubColor = "ffb2"
 	const fullBrightNessHexValue = 49; // 1
 	const zeroBrightNessHexValue = 48; // 0
+
+	const navigation = useNavigation();
+
+	useEffect(() => {
+		BleManager.start({ showAlert: false, forceLegacy: true });
+
+		const ble1 = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
+		const ble2 = bleManagerEmitter.addListener('BleManagerStopScan', handleStopScan);
+		const ble3 = bleManagerEmitter.addListener('BleManagerDisconnectPeripheral', handleDisconnectedPeripheral);
+		const ble4 = bleManagerEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', handleUpdateValueForCharacteristic);
+
+		checkForBluetoothPermission()
+
+		return (() => {
+			console.log('unmount');
+			ble1.remove()
+			ble2.remove()
+			ble3.remove()
+			ble4.remove()
+		})
+	}, []);
 
 	const startScan = () => {
 		if (!isScanning) {
@@ -71,6 +103,7 @@ const BletoothMainScreen = (props) => {
 	const handleStopScan = () => {
 		console.log('Scan is stopped');
 		setIsScanning(false);
+		setIsRefreshing(false)
 	}
 
 	const handleDisconnectedPeripheral = (data) => {
@@ -129,6 +162,7 @@ const BletoothMainScreen = (props) => {
 				// Success code
 				console.log("The bluetooth is already enabled or the user confirm");
 				setBluetoothtoggle(true)
+				startScan()
 			})
 			.catch((error) => {
 				console.log("rror-r---->", error);
@@ -145,14 +179,12 @@ const BletoothMainScreen = (props) => {
 		setList(Array.from(peripherals.values()));
 	}
 
-	useEffect(() => {
-		BleManager.start({ showAlert: false, forceLegacy: true });
+	const onRefresh = () => {
+		setIsRefreshing(true)
+		startScan()
+	}
 
-		const ble1 = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
-		const ble2 = bleManagerEmitter.addListener('BleManagerStopScan', handleStopScan);
-		const ble3 = bleManagerEmitter.addListener('BleManagerDisconnectPeripheral', handleDisconnectedPeripheral);
-		const ble4 = bleManagerEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', handleUpdateValueForCharacteristic);
-
+	const checkForBluetoothPermission = () => {
 		if (Platform.OS === 'android' && Platform.Version >= 23) {
 			let finalPermission = Platform.Version >= 29 ? PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION : PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION;
 			PermissionsAndroid.check(finalPermission).then((result) => {
@@ -171,20 +203,13 @@ const BletoothMainScreen = (props) => {
 				}
 			});
 		}
-
-		return (() => {
-			console.log('unmount');
-			ble1.remove()
-			ble2.remove()
-			ble3.remove()
-			ble4.remove()
-		})
-	}, []);
+	}
 
 	const renderItem = (item, index) => {
+		console.log("Item---->", item);
 		return (
 			<TouchableOpacity
-				onPress={() => checkphepriparal(item)}
+				// onPress={() => checkphepriparal(item)}
 				style={{
 					marginHorizontal: 10,
 					marginVertical: 10,
@@ -358,99 +383,6 @@ const BletoothMainScreen = (props) => {
 		})
 	}
 
-	const checkphepriparal = (peripheral, isRead) => {
-		console.log("peripheral======>", peripheral);
-
-		BleManager.isPeripheralConnected(peripheral.id, []).then((res) => {
-			console.log(`${peripheral.name} is connected???`, res);
-
-			if (res == false) {
-				console.log("******not connected so going to connect...........");
-				BleManager.connect(peripheral.id)
-					.then((res7) => {
-						// Success code
-						console.log("connect started", res7);
-						if (isRead) readServices(peripheral)
-						else { writeCharecteristics(peripheral) }
-					})
-					.catch((error) => { console.log("error---456464454->", error); });
-			}
-			else {
-				if (isRead) readServices(peripheral)
-				else { writeCharecteristics(peripheral) }
-			}
-		}).catch((error) => { console.log("Error--->", error) })
-	}
-
-	const readServices = async (peripheral) => {
-		setBleValue("")
-		BleManager.retrieveServices(peripheral.id).then((res1) => {
-			console.log("retrieveServices started", res1);
-			let readhasservice = res1.characteristics.filter((obj) => obj.properties.Read);
-			console.log("readhasservice-->", readhasservice);
-
-			// let writeServicesList = res1.characteristics.filter((obj) => obj.properties.Write);
-			// console.log("writeServicesList-->", writeServicesList);
-
-			BleManager.read(peripheral.id, readhasservice[0].service, readhasservice[0].characteristic).then((characteristic) => {
-				console.log("Readable char ------<>", characteristic);
-				const bytesString = String.fromCharCode(...characteristic)
-				console.log('Bytes to string: ', bytesString)
-				setBleValue(bytesString)
-			}).catch((error) => {
-				console.log("error--read error-->", error);
-			});
-
-		}).catch((error) => {
-			console.log("error1515--->", error);
-		})
-	}
-
-	const writeCharecteristics = async (peripheral) => {
-		setHexValue("")
-		BleManager.retrieveServices(peripheral.id).then((res1) => {
-			console.log("retrieveServices started", res1);
-			let writeServicesList = res1.characteristics.filter((obj) => obj.properties.Write);
-			console.log("writeServicesList-->", writeServicesList);
-
-			let yourStringData = "helso"
-			let hexInput = Buffer.from(yourStringData, 'utf8').toString('hex');
-			console.log("yourStringData: " + yourStringData);
-			console.log("hexInput--->", hexInput);
-			function convertStringToByteArray(str) {
-				String.prototype.encodeHex = function () {
-					var bytes = [];
-					for (var i = 0; i < this.length; ++i) {
-						bytes.push(this.charCodeAt(i));
-					}
-					return bytes;
-				};
-
-				var byteArray = str.encodeHex();
-				return byteArray
-			}
-			let tempBuffer = convertStringToByteArray(yourStringData)
-			console.log("tempBuffer", tempBuffer);
-
-			BleManager.write(peripheral.id, writeServicesList[0].service, writeServicesList[0].characteristic, tempBuffer).then(() => {
-				console.log("successfully written--->");
-				alert("successfully write: " + hexInput)
-
-				BleManager.startNotification(peripheral.id, writeServicesList[0].service, writeServicesList[0].characteristic).then(() => {
-					console.log("successfully noified--->");
-
-				}).catch((error) => {
-					console.log(error);
-				});
-			}).catch((error) => {
-				console.log(error);
-			});
-
-		}).catch((error) => {
-			console.log("error1515--->", error);
-		})
-	}
-
 	const readAndWriteData = (peripheral, isRead) => {
 		console.log("peripheral======>", peripheral);
 
@@ -511,44 +443,239 @@ const BletoothMainScreen = (props) => {
 		}
 	}
 
-	return (
-		<View style={{ flex: 1, backgroundColor: "white" }}>
-			<StatusBar barStyle="dark-content" />
-			<SafeAreaView>
-				<ScrollView
-					contentInsetAdjustmentBehavior="automatic"
-					contentContainerStyle={styles.scrollView}>
+	const renderListEmptyComponent = () => {
+		return (
+			<View style={{
+				alignItems: "center",
+				justifyContent: "center",
+				flex: 1,
+				height: "100%"
+			}}>
+				{
+					isScanning ?
+						<Text style={{ color: "black", fontSize: 16 }}>{"Scanning for Smart Blub..."}</Text>
+						:
+						<View style={{}}>
+							<Text style={{ color: "black", fontWeight: "600", fontSize: 16, textAlign: "center" }}>{"No Smart Blub Found."}</Text>
+							<Text style={{ color: "black", fontWeight: "400", fontSize: 14, marginTop: 20, textAlign: "center" }}>{"Please make sure smart blubs are powered on."}</Text>
 
-					<View style={styles.body}>
-
-						<View style={{ margin: 10 }}>
-							<Button
-								title={'Scan Bluetooth (' + (isScanning ? 'on' : 'off') + ')'}
-								onPress={() => startScan()}
-							/>
+							<Text style={{ color: "blue", fontWeight: "600", fontSize: 16, marginTop: 30, textAlign: "center" }}>{"Troubleshooting Help"}</Text>
+							<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"1. Restart the bluetooth"}</Text>
+							<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"2. Click on Refresh Icon."}</Text>
+							<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"3. Restart Smart blub."}</Text>
+							<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"4. Unintstall app and reinstall again."}</Text>
 						</View>
+				}
+			</View>
+		)
+	}
 
-						{(list.length == 0) &&
-							<View style={{ flex: 1, margin: 20 }}>
-								<Text style={{ textAlign: 'center' }}>No peripherals</Text>
-							</View>
-						}
+	const renderBlubList = ({ item, index }) => {
+		console.log("Item---->", item);
 
-					</View>
-					<FlatList
-						data={list}
-						renderItem={({ item, index }) => renderItem(item, index)}
-						contentContainerStyle={{ flexGrow: 1, backgroundColor: "white" }}
-						extraData={randomNumber}
-						ListHeaderComponent={() => (
-							<Text style={{ color: "black", fontSize: 14, marginVertical: 10, marginHorizontal: 10 }}>{"Connected Devices::"}</Text>
-						)}
-						keyExtractor={item => item.id}
+		return (
+			<TouchableOpacity style={{
+				marginHorizontal: 20,
+				flexDirection: "row",
+				alignItems: "center",
+				marginVertical: 10,
+				justifyContent: "space-between"
+			}}
+				onPress={() => onPressSingleBlub(item, index)}
+			>
+				<View style={{
+					flexDirection: "row",
+					alignItems: "center",
+				}}>
+					<Image source={images.smartBlubIcon}
+						style={{ height: 30, width: 30 }}
 					/>
+					<Text style={{ color: "black", marginLeft: 20 }}>{"Smart Blub " + (index + 1)}</Text>
+				</View>
+				{/* <TouchableOpacity style={{
+					backgroundColor: "blue",
+					padding: 5,
+					borderRadius: 5,
+				}}
+					onPress={() => connectBLEDevice(item, index)}
+				>
+					<Text style={{
+						color: "white"
+					}}>{"Connect"}</Text>
+				</TouchableOpacity> */}
+				{
+					item.isConnecting ?
+						<ActivityIndicator />
+						: null
+				}
+			</TouchableOpacity>
+		)
+	}
 
 
-				</ScrollView>
-			</SafeAreaView>
+	const onPressSingleBlub = (item, index) => {
+		connectBLEDevice(item, index)
+	}
+
+	const connectBLEDevice = (item, index) => {
+		toggleConnecting(true, index)
+
+		BleManager.isPeripheralConnected(item.id, []).then((res) => {
+			if (res == false) {
+				BleManager.connect(item.id)
+					.then((res7) => {
+						console.log("Response--BLE connect--->", res7);
+						redirectUserToNext(item, index)
+					}).catch((error) => {
+						console.log("Error---BLE connect--->", error);
+						toggleConnecting(false, index)
+						ToastAndroid.show("Something went wrong while connecting..", ToastAndroid.SHORT)
+					})
+			}
+			else {
+				console.log("already connected");
+				redirectUserToNext(item, index)
+			}
+		}).catch((error) => {
+			console.log("Error---isPeripheralConnected->", error);
+			toggleConnecting(false, index)
+			ToastAndroid.show("Something went wrong while connecting..", ToastAndroid.SHORT)
+		})
+	}
+
+	const redirectUserToNext = (item, index) => {
+		toggleConnecting(false, index)
+		ToastAndroid.show("Connected successfully", ToastAndroid.SHORT)
+		navigation.navigate("BLEDeviceService", {
+			peripheral: item
+		})
+	}
+
+	const toggleConnecting = (value, index) => {
+		let temp = list;
+		temp[index].isConnecting = value;
+		setList(temp)
+		setRandom(Date.now())
+	}
+
+	const onRequestClose = () => {
+		toggleHelpModal(false)
+	}
+
+	console.log("list ------>", list);
+	return (
+		// <View style={{ flex: 1, backgroundColor: "white" }}>
+		// 	<StatusBar barStyle="dark-content" />
+		// 	<SafeAreaView>
+		// 		<ScrollView
+		// 			contentInsetAdjustmentBehavior="automatic"
+		// 			contentContainerStyle={styles.scrollView}>
+		// 			<View style={styles.body}>
+		// 				<View style={{ margin: 10 }}>
+		// 					<Button
+		// 						title={'Scan Bluetooth (' + (isScanning ? 'on' : 'off') + ')'}
+		// 						onPress={() => startScan()}
+		// 					/>
+		// 				</View>
+		// 				{(list.length == 0) &&
+		// 					<View style={{ flex: 1, margin: 20 }}>
+		// 						<Text style={{ textAlign: 'center' }}>No peripherals</Text>
+		// 					</View>
+		// 				}
+		// 			</View>
+		// 			<FlatList
+		// 				data={list}
+		// 				renderItem={({ item, index }) => renderItem(item, index)}
+		// 				contentContainerStyle={{ flexGrow: 1, backgroundColor: "white" }}
+		// 				extraData={randomNumber}
+		// 				ListHeaderComponent={() => (
+		// 					<Text style={{ color: "black", fontSize: 14, marginVertical: 10, marginHorizontal: 10 }}>{"Connected Devices::"}</Text>
+		// 				)}
+		// 				keyExtractor={item => item.id}
+		// 			/>
+		// 		</ScrollView>
+		// 	</SafeAreaView>
+		// </View>
+
+		<View style={{ flex: 1, backgroundColor: "white" }}>
+			<CustomHeader
+				backButton
+				middleText='Bluetooth Low Energy'
+				onBackButtonPress={() => navigation.goBack()}
+			/>
+			<ScrollView
+				refreshControl={
+					<RefreshControl
+						refreshing={isRefreshing}
+						onRefresh={() => onRefresh()}
+					/>
+				}
+				contentContainerStyle={{ flexGrow: 1 }}
+			>
+				<FlatList
+					data={list}
+					keyExtractor={item => item.id}
+					extraData={randomNumber}
+					contentContainerStyle={{ flexGrow: 1, backgroundColor: "white" }}
+					ListEmptyComponent={renderListEmptyComponent}
+					renderItem={renderBlubList}
+				/>
+			</ScrollView>
+			{
+				isScanning ?
+					<CustomLoader loading={isScanning} />
+					: null
+			}
+			<View style={{ position: "absolute", bottom: 10, flexDirection: "row", justifyContent: "space-between" }}>
+				<TouchableOpacity style={{ alignItems: "center", width: "50%" }} onPress={startScan}>
+					<Image
+						source={images.refreshIcon}
+						style={{ height: 30, width: 30, }}
+					/>
+					<Text style={{
+						fontSize: 16, fontWeight: "700", color: "black"
+					}}>{"Refresh"}</Text>
+				</TouchableOpacity>
+
+				<TouchableOpacity
+					onPress={() => toggleHelpModal(true)}
+					style={{ alignItems: "center", width: "50%" }}>
+					<Image
+						source={images.helpIcon}
+						style={{ height: 30, width: 30, }}
+					/>
+					<Text style={{
+						fontSize: 16, fontWeight: "700", color: "black"
+					}}>{"Help"}</Text>
+				</TouchableOpacity>
+			</View>
+
+			<View>
+				<Modal
+					visible={helpModalVisible}
+					animationType={'slide'}
+					onRequestClose={onRequestClose}
+					transparent={true}
+				>
+					<TouchableHighlight
+						underlayColor={"transparent"}
+						onPress={onRequestClose}
+						style={styles.outerViewModalStyle}
+					>
+						<TouchableOpacity delayPressIn={0} onPress={() => null} activeOpacity={1}>
+							<View style={styles.modal}>
+								<View style={{ paddingHorizontal: 20 }}>
+									<Text style={{ color: "blue", fontWeight: "600", fontSize: 16, marginVertical: 15, textAlign: "center" }}>{"Troubleshooting Help"}</Text>
+									<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"1. Restart the bluetooth"}</Text>
+									<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"2. Click on Refresh Icon."}</Text>
+									<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"3. Restart Smart blub."}</Text>
+									<Text style={{ color: "black", fontWeight: "400", fontSize: 14, }}>{"4. Unintstall app and reinstall again."}</Text>
+								</View>
+							</View>
+						</TouchableOpacity>
+					</TouchableHighlight>
+				</Modal>
+			</View>
 		</View>
 	);
 };
@@ -589,6 +716,18 @@ const styles = StyleSheet.create({
 		padding: 4,
 		paddingRight: 12,
 		textAlign: 'right',
+	},
+	outerViewModalStyle: {
+		flex: 1,
+		backgroundColor: 'rgba(0, 0, 0, 0.75)',
+		justifyContent: 'center',
+	},
+	modal: {
+		backgroundColor: "white",
+		borderRadius: 10,
+		marginHorizontal: 20,
+		// marginHorizontal: 10
+		paddingBottom: 20
 	},
 });
 
