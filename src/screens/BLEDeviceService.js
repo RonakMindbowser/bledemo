@@ -3,47 +3,37 @@ import React, {
     useEffect,
 } from 'react';
 import {
-    SafeAreaView,
     StyleSheet,
     ScrollView,
     View,
     Text,
-    StatusBar,
     NativeModules,
     NativeEventEmitter,
-    Button,
-    Platform,
-    PermissionsAndroid,
+
     FlatList,
-    TouchableHighlight,
-    TextInput,
     TouchableOpacity,
     Switch,
-    RefreshControl,
-    Image,
-    Modal,
-    ActivityIndicator,
     ToastAndroid,
 } from 'react-native';
 
-import {
-    Colors,
-} from 'react-native/Libraries/NewAppScreen';
 import BleManager from "react-native-ble-manager";
-import { stringToBytes, bytesToString } from "convert-string";
-import { ColorPicker, toHsv, fromHsv, TriangleColorPicker } from 'react-native-color-picker';
-import { hexToRgb, HSLToHex, hslToHex, hsv2rgb, HSVtoRGB } from '../Utils';
+import { ColorPicker, toHsv, fromHsv, } from 'react-native-color-picker';
+import { hexToRgb, } from '../Utils';
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
 
-import { CustomHeader, CustomLoader } from "react-native-reusable-custom-components";
+import { CustomHeader, } from "react-native-reusable-custom-components";
 import images from '../assets/images/images';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import Slider from '@react-native-community/slider';
-import { colorAndShadeList, colorAndShadeList1 } from './ColorList';
+import { colorAndShadeList1 } from './ColorList';
 
+/**
+ * BLE Device Service Class
+ * @param {*} props 
+ * @returns 
+ */
 const BLEDeviceService = (props) => {
     const navigation = useNavigation();
     const route = useRoute();
@@ -66,19 +56,15 @@ const BLEDeviceService = (props) => {
     const colorAndShadeList = colorAndShadeList1
 
     useEffect(() => {
-
-        // const ble1 = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
-        // const ble2 = bleManagerEmitter.addListener('BleManagerStopScan', handleStopScan);
         const ble3 = bleManagerEmitter.addListener('BleManagerDisconnectPeripheral', handleDisconnectedPeripheral);
         const ble4 = bleManagerEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', handleUpdateValueForCharacteristic);
 
+        //* Get the All services from Periheral
         getAllServiceForBLEDevice()
 
         return (() => {
             console.log('unmount');
-            // ble1.remove()
-            // ble2.remove()
-            // ble3.remove()
+            ble3.remove()
             ble4.remove()
         })
 
@@ -90,9 +76,17 @@ const BLEDeviceService = (props) => {
         navigation.goBack()
     }
 
+    /**
+     //* Get the All services from Periheral
+     */
     const getAllServiceForBLEDevice = () => {
         let item = route.params && route.params.peripheral ? route.params.peripheral : null
         var tempdata = [];
+
+        /**
+         //* Retrieve services and characteristic from Periheral
+         //*@param id of Periheral
+        */
         BleManager.retrieveServices(item.id).then((res1) => {
             console.log("Res1===>", res1);
             let data = res1.characteristics;
@@ -131,10 +125,19 @@ const BLEDeviceService = (props) => {
             });
             console.log("tempdata-0----->", tempdata);
             setServiceAndCharList(tempdata)
+
+            /**
+             *//* Check and find if required Service is available in all
+*  retrieved services list to Perform operation
+*/
             let isListContainBlubChangeColorService = tempdata.filter((obj) => obj.service == serviceUUIDForWriteBlubColor);
             console.log("isListContainBlubChangeColorService---->", isListContainBlubChangeColorService);
 
             if (isListContainBlubChangeColorService.length > 0) {
+                /**
+                *//* Check and find if required Characteristic is available in all
+                *  retrieved characteristic list to Perform operation
+                */
                 let isListContainBlubChangeColorChar = isListContainBlubChangeColorService[0].characteristicList.filter((obj) => obj.characteristic == characteristicUUIDForWriteBlubColor);
                 console.log("isListContainBlubChangeColorChar---->", isListContainBlubChangeColorChar);
                 if (isListContainBlubChangeColorChar.length) {
@@ -148,41 +151,36 @@ const BLEDeviceService = (props) => {
                 setAvaibility(false)
             }
 
-            // function getCharCodes(s) {
-            //     let charCodeArr = [];
+            function getCharCodes(s) {
+                let charCodeArr = [];
 
-            //     for (let i = 0; i < s.length; i++) {
-            //         let code = s.charCodeAt(i);
-            //         charCodeArr.push(code);
-            //     }
+                for (let i = 0; i < s.length; i++) {
+                    let code = s.charCodeAt(i);
+                    charCodeArr.push(code);
+                }
 
-            //     return charCodeArr;
-            // }
+                return charCodeArr;
+            }
 
-            // let yourStringData = "New Device"
-            // const data11 = getCharCodes(yourStringData);
-            // console.log("Data11000<", data11);
-            // BleManager.write(item.id, serviceUUIDForWriteBlubColor, characteristicUUIDForChangeNameBlubColor, [65, 66]).then((characteristic) => {
-            //     console.log("characteristic--->", characteristic);
+            let yourStringData = "SMART BLUB 060422"
+            console.log("yourStringData<", yourStringData.length);
+            if (yourStringData.length < 19) {
+                let difference = 19 - yourStringData.length;
+                console.log("difference<", difference);
+                yourStringData = yourStringData.padEnd(19, ' ');
+                // console.log(padEnd); //  "baz   "
+                // console.log(padEnd.length); //  "baz   "
+            }
+            const data11 = getCharCodes(yourStringData);
+            console.log("Data11000<", data11);
+            // BleManager.read(item.id, serviceUUIDForWriteBlubColor, characteristicUUIDForChangeNameBlubColor).then((characteristic) => {
+            BleManager.write(item.id, serviceUUIDForWriteBlubColor, characteristicUUIDForChangeNameBlubColor, data11).then((characteristic) => {
+                console.log("characteristic--after write->", characteristic);
 
-            //     // const bytesString = String.fromCharCode(...characteristic)
-            //     // console.log('Bytes to string: ', bytesString)
+            }).catch((error) => {
+                console.log("Error--write name->", error);
+            })
 
-            //     // let bytesView = new Uint8Array(characteristic);
-            //     // console.log(bytesView);
-            //     // let str = new TextDecoder().decode(bytesView);
-            //     // console.log(str);
-
-
-            // }).catch((error) => {
-            //     console.log("Error--->", error);
-            // })
-
-            // let newList = list;
-            // newList[index].servicesList = tempdata;
-            // newList[index].isEnabled = true;
-            // setRandom(Date.now())
-            // setList(newList);
         }).catch((err) => {
             console.log("err-->", err);
         })
@@ -216,7 +214,7 @@ const BLEDeviceService = (props) => {
                 marginVertical: 5
             }}
                 onPress={() => {
-                    applyConversion(item.backgroundColor)
+                    onColorPicked(item.backgroundColor)
                 }}
             >
                 <View style={{
@@ -232,14 +230,29 @@ const BLEDeviceService = (props) => {
         )
     }
 
-    const applyConversion = (color) => {
+    /**
+     * //* method called when color is selected
+     * @param {*} color 
+     */
+    const onColorPicked = (color) => {
 
+        /**
+         * //*Checking if service is available or not
+         */
         if (isServiceAndCharAvailable) {
             let item = route.params && route.params.peripheral ? route.params.peripheral : null
             console.log("color--->", color)
+
+            /**
+             * handle HEX to RGB color conversion
+             */
             let hexToRgbValue = hexToRgb(color)
             console.log("hexToRgbValue--->", hexToRgbValue)
             let { r, g, b } = hexToRgbValue
+
+            /**
+             * Required data to perform write operation
+             */
             let tempObj = {
                 id: item.id,
                 name: item.name,
@@ -256,14 +269,29 @@ const BLEDeviceService = (props) => {
         }
     }
 
+    /**
+     * 
+     * //* Here we are reading and writing the data 
+     * 
+     * @param {*} peripheral 
+     * @param {*} isRead 
+     * @param {*} isToggleBlub 
+     */
     const readAndWriteData = (peripheral, isRead, isToggleBlub) => {
         console.log("peripheral======>", peripheral);
 
+        /**
+         *//* Again checking that BLE peripheral is connected or not
+   */
         BleManager.isPeripheralConnected(peripheral.id, []).then((res) => {
             console.log(`${peripheral.name} is connected???`, res);
 
             if (res == false) {
                 console.log("******not connected so going to connect...........");
+
+                /**
+                 * //*method to connect the peripheral with our app
+                 */
                 BleManager.connect(peripheral.id)
                     .then((res7) => {
                         // Success code
@@ -284,7 +312,6 @@ const BLEDeviceService = (props) => {
         setBleValue("")
         BleManager.read(peripheral.id, peripheral.service, peripheral.characteristic).then((characteristic) => {
             console.log("Readable char ------<>", characteristic);
-            // const bytesString = String.fromCharCode.apply(String, characteristic) //same as below
             const bytesString = String.fromCharCode(...characteristic)
             console.log('Bytes to string: ', bytesString)
 
@@ -299,6 +326,11 @@ const BLEDeviceService = (props) => {
         });
     }
 
+    /**
+     * Here we are performing the Write operation
+     * @param {*} peripheral 
+     * @param {*} isToggleBlub 
+     */
     const writeCharData = (peripheral, isToggleBlub) => {
 
         try {
@@ -319,6 +351,7 @@ const BLEDeviceService = (props) => {
                 }
             }).catch(error => {
                 console.log("Error--->", error);
+                ToastAndroid.show(JSON.stringify(error), ToastAndroid.SHORT)
             })
         } catch (error) {
             console.log("Error---123123123-<", error);
@@ -327,10 +360,12 @@ const BLEDeviceService = (props) => {
 
     const onBrightnessChange = (value) => {
         console.log("onBrightnessChange----->", value);
-
-
     }
 
+    /**
+     * Here we are performing the Blub Turn on/off operation
+     * @param {*} value 
+     */
     const handleBlubToggleValue = (value,) => {
         console.log("value,item,index-->", value);
         console.log("Last color,item,index-->", lastColor);
@@ -379,15 +414,6 @@ const BLEDeviceService = (props) => {
                 {colorAndShadeList.map((item, index) => renderColorTitleItem(item, index))}
             </ScrollView>
 
-            {/* <FlatList
-                data={colorAndShadeList}
-                extraData={colorAndShadeList}
-                horizontal
-                keyExtractor={(i, j) => j.toString()}
-                renderItem={renderColorTitleItem}
-                contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 30 }}
-            /> */}
-
             {currentIndex != 0 ? <FlatList
                 data={colorAndShadeList[currentIndex].colorList}
                 extraData={randomNumber}
@@ -397,7 +423,7 @@ const BLEDeviceService = (props) => {
                 <View style={{ height: "70%", marginBottom: 30 }}>
                     <ColorPicker
                         onColorSelected={color => {
-                            applyConversion(color)
+                            onColorPicked(color)
                         }}
                         style={{ flex: 1 }}
                         hideControls
@@ -413,7 +439,7 @@ const BLEDeviceService = (props) => {
                     />
                     <TouchableOpacity
                         onPress={() => {
-                            applyConversion(selectedColorFromPicker)
+                            onColorPicked(selectedColorFromPicker)
                         }}
                         style={[styles.titleView, { width: 200, alignSelf: "center" }]}
                     >
@@ -421,17 +447,7 @@ const BLEDeviceService = (props) => {
                     </TouchableOpacity>
                 </View>
             }
-            {/* <Text style={{ fontSize: 16, color: "black" }}>{"Brightness"}</Text>
-            <Slider
-                style={{ width: "90%", height: 60, marginLeft: "5%" }}
-                minimumValue={0}
-                maximumValue={1}
-                thumbTintColor='red'
-                step={0.1}
-                minimumTrackTintColor="black"
-                maximumTrackTintColor="blue"
-                onValueChange={onBrightnessChange}
-            /> */}
+
             <View style={{
                 position: "absolute",
                 right: 0,

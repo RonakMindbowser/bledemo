@@ -1,12 +1,13 @@
 import React, { } from 'react';
 import {
-  View, StyleSheet, StatusBar
+  View, StyleSheet, StatusBar, LogBox
 } from 'react-native';
 import AppContainer from './src/navigator/AppNavigator';
 import messaging from "@react-native-firebase/messaging"
 import PushNotificationService from './src/pushnotification/PushNotificationService';
 import ShareExtension from 'react-native-share-extension'
 import NavigationService from './src/navigator/NavigationService';
+LogBox.ignoreAllLogs();//Ignore all log notifications
 
 export default function RNApp() {
 
