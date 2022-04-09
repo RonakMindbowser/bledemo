@@ -22,10 +22,8 @@ import { hexToRgb, } from '../Utils';
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
-var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
 
 import { CustomHeader, } from "react-native-reusable-custom-components";
-import images from '../assets/images/images';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colorAndShadeList1 } from './ColorList';
 
@@ -40,6 +38,7 @@ const BLEDeviceService = (props) => {
 
     const [currentIndex, setIndex] = useState(0)
     const [randomNumber, setRandom] = useState(Date.now())
+    const [blubName, setBlubName] = useState("")
 
     const [lastColor, setLastColor] = useState("");
     const [serviceAndCharList, setServiceAndCharList] = useState([]);
@@ -49,7 +48,7 @@ const BLEDeviceService = (props) => {
 
     const serviceUUIDForWriteBlubColor = "ffb0"
     const characteristicUUIDForWriteBlubColor = "ffb2"
-    const characteristicUUIDForChangeNameBlubColor = "ffb7"
+    const characteristicUUIDForChangeBlubName = "ffb7"
     const fullBrightNessHexValue = 49; // 1
     const zeroBrightNessHexValue = 48; // 0
 
@@ -63,7 +62,6 @@ const BLEDeviceService = (props) => {
         getAllServiceForBLEDevice()
 
         return (() => {
-            console.log('unmount');
             ble3.remove()
             ble4.remove()
         })
@@ -71,7 +69,6 @@ const BLEDeviceService = (props) => {
     }, []);
 
     const handleDisconnectedPeripheral = (data) => {
-        console.log('Disconnected from ' + JSON.stringify(data));
         alert("BLE Device is Disconnected")
         navigation.goBack()
     }
@@ -128,8 +125,8 @@ const BLEDeviceService = (props) => {
 
             /**
              *//* Check and find if required Service is available in all
-*  retrieved services list to Perform operation
-*/
+   *  retrieved services list to Perform operation
+   */
             let isListContainBlubChangeColorService = tempdata.filter((obj) => obj.service == serviceUUIDForWriteBlubColor);
             console.log("isListContainBlubChangeColorService---->", isListContainBlubChangeColorService);
 
@@ -162,21 +159,15 @@ const BLEDeviceService = (props) => {
                 return charCodeArr;
             }
 
-            let yourStringData = "SMART BLUB 060422"
-            console.log("yourStringData<", yourStringData.length);
-            if (yourStringData.length < 19) {
-                let difference = 19 - yourStringData.length;
-                console.log("difference<", difference);
-                yourStringData = yourStringData.padEnd(19, ' ');
-                // console.log(padEnd); //  "baz   "
-                // console.log(padEnd.length); //  "baz   "
-            }
-            const data11 = getCharCodes(yourStringData);
-            console.log("Data11000<", data11);
-            // BleManager.read(item.id, serviceUUIDForWriteBlubColor, characteristicUUIDForChangeNameBlubColor).then((characteristic) => {
-            BleManager.write(item.id, serviceUUIDForWriteBlubColor, characteristicUUIDForChangeNameBlubColor, data11).then((characteristic) => {
-                console.log("characteristic--after write->", characteristic);
-
+            /**
+             *//* Read operation to get blub name
+       */
+            BleManager.read(item.id, serviceUUIDForWriteBlubColor, characteristicUUIDForChangeBlubName).then((characteristic) => {
+                /**
+                 *//* From library we are getting byte array so we need to convert into Human readable format.
+            */
+                const bytesString = String.fromCharCode(...characteristic)
+                setBlubName(bytesString)
             }).catch((error) => {
                 console.log("Error--write name->", error);
             })
@@ -241,13 +232,10 @@ const BLEDeviceService = (props) => {
          */
         if (isServiceAndCharAvailable) {
             let item = route.params && route.params.peripheral ? route.params.peripheral : null
-            console.log("color--->", color)
-
             /**
              * handle HEX to RGB color conversion
              */
             let hexToRgbValue = hexToRgb(color)
-            console.log("hexToRgbValue--->", hexToRgbValue)
             let { r, g, b } = hexToRgbValue
 
             /**
@@ -278,24 +266,17 @@ const BLEDeviceService = (props) => {
      * @param {*} isToggleBlub 
      */
     const readAndWriteData = (peripheral, isRead, isToggleBlub) => {
-        console.log("peripheral======>", peripheral);
-
         /**
          *//* Again checking that BLE peripheral is connected or not
-   */
+*/
         BleManager.isPeripheralConnected(peripheral.id, []).then((res) => {
-            console.log(`${peripheral.name} is connected???`, res);
-
             if (res == false) {
-                console.log("******not connected so going to connect...........");
-
                 /**
                  * //*method to connect the peripheral with our app
                  */
                 BleManager.connect(peripheral.id)
                     .then((res7) => {
                         // Success code
-                        console.log("connect started", res7);
                         if (isRead) readCharData(peripheral)
                         else writeCharData(peripheral, isToggleBlub)
                     })
@@ -311,15 +292,9 @@ const BLEDeviceService = (props) => {
     const readCharData = (peripheral) => {
         setBleValue("")
         BleManager.read(peripheral.id, peripheral.service, peripheral.characteristic).then((characteristic) => {
-            console.log("Readable char ------<>", characteristic);
             const bytesString = String.fromCharCode(...characteristic)
-            console.log('Bytes to string: ', bytesString)
-
             let bytesView = new Uint8Array(characteristic);
-            console.log(bytesView);
             let str = new TextDecoder().decode(bytesView);
-            console.log(str);
-
             setBleValue(bytesString)
         }).catch((error) => {
             console.log("error--read error-->", error);
@@ -339,7 +314,6 @@ const BLEDeviceService = (props) => {
                 peripheral.characteristic,
                 peripheral.writeValueData	// [48, 0, 0, 0]	//	tempBuffer
             ).then((response) => {
-                console.log("Resonse---->", response);
                 if (isToggleBlub == "1") {
                     ToastAndroid.show("Blub is now Turned On", ToastAndroid.SHORT)
                 }
@@ -358,22 +332,15 @@ const BLEDeviceService = (props) => {
         }
     }
 
-    const onBrightnessChange = (value) => {
-        console.log("onBrightnessChange----->", value);
-    }
-
     /**
      * Here we are performing the Blub Turn on/off operation
      * @param {*} value 
      */
     const handleBlubToggleValue = (value,) => {
-        console.log("value,item,index-->", value);
-        console.log("Last color,item,index-->", lastColor);
         let item = route.params && route.params.peripheral ? route.params.peripheral : null
 
         if (value) {
             let hexToRgbValue = hexToRgb(lastColor ? lastColor : "#FFFFFF")
-            console.log("hexToRgbValue--->", hexToRgbValue)
             let { r, g, b } = hexToRgbValue
 
             let tempObj = {
@@ -403,7 +370,7 @@ const BLEDeviceService = (props) => {
         <View style={styles.container}>
             <CustomHeader
                 backButton
-                middleText='BLE Device Services'
+                middleText={blubName ? `${blubName}` : 'BLE Device Services'}
                 onBackButtonPress={() => navigation.goBack()}
             />
 

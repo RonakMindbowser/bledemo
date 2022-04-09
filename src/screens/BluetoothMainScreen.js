@@ -26,6 +26,7 @@ import {
 	Modal,
 	ActivityIndicator,
 	ToastAndroid,
+	TextInput,
 } from 'react-native';
 
 import {
@@ -58,12 +59,13 @@ const BletoothMainScreen = (props) => {
 	const [helpModalVisible, toggleHelpModal] = useState(false)
 	const [isRenameModalVisible, setRenameModalVisible] = useState(false)
 	const [renameValue, setRenameValue] = useState("")
+	const [selectedPeripheral, setSelectedPeripheral] = useState(null)
 
 	const navigation = useNavigation();
 
 	const serviceUUIDForWriteBlubColor = "ffb0"
 	const characteristicUUIDForWriteBlubColor = "ffb2"
-	const characteristicUUIDForChangeNameBlubColor = "ffb7"
+	const characteristicUUIDForChangeBlubName = "ffb7"
 
 	useEffect(() => {
 		/**
@@ -73,7 +75,7 @@ const BletoothMainScreen = (props) => {
 
 		/**
 		 *//* Listener to handle the opeation when device is connected , disconnected Handle stop scan , when any value will update from BLE device
-	  */
+*/
 		const ble1 = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
 		const ble2 = bleManagerEmitter.addListener('BleManagerStopScan', handleStopScan);
 		const ble3 = bleManagerEmitter.addListener('BleManagerDisconnectPeripheral', handleDisconnectedPeripheral);
@@ -161,7 +163,7 @@ const BletoothMainScreen = (props) => {
 
 	/**
 	 *//* Enable the Bluetooth Permission
-	*/
+*/
 	const enableBluetoothInDevice = () => {
 		BleManager.enableBluetooth()
 			.then(() => {
@@ -183,6 +185,7 @@ const BletoothMainScreen = (props) => {
 	const handleDiscoverPeripheral = (peripheral) => {
 		peripherals.set(peripheral.id, peripheral);
 		setList(Array.from(peripherals.values()));
+		setRandom(Date.now())
 	}
 
 	const onRefresh = () => {
@@ -264,13 +267,22 @@ const BletoothMainScreen = (props) => {
 					<Text style={{ color: "black", marginLeft: 20 }}>{"Smart Bulb " + (index + 1)}</Text>
 				</View>
 
-
 				{
 					item.isConnecting ?
 						<View style={{ position: "absolute", right: "30%" }}>
 							<ActivityIndicator />
 						</View>
 						: null
+				}
+				{
+					<TouchableOpacity
+						onPress={() => {
+							setRenameModalVisible(true)
+							setSelectedPeripheral(item)
+						}}
+						style={{ backgroundColor: "blue", padding: 5 }}>
+						<Text style={{ fontSize: 14, color: "white" }}>{"Rename"}</Text>
+					</TouchableOpacity>
 				}
 			</TouchableOpacity>
 		)
@@ -334,10 +346,87 @@ const BletoothMainScreen = (props) => {
 
 	const onRequestClose = () => {
 		toggleHelpModal(false)
+		setRenameModalVisible(false)
+		setSelectedPeripheral(null)
+		setRenameValue("")
 	}
 
 	const onRequestCloseRenameModal = () => {
 		setRenameModalVisible(false)
+	}
+
+	const getCharCodes = (s) => {
+		let charCodeArr = [];
+		for (let i = 0; i < s.length; i++) {
+			let code = s.charCodeAt(i);
+			charCodeArr.push(code);
+		}
+		return charCodeArr;
+	}
+
+	const onPressRenameDevice = () => {
+		if (renameValue.trim() == "") {
+			alert("Please enter value")
+		}
+		else {
+			if (selectedPeripheral) {
+				/**
+				*//* Again checking that BLE peripheral is connected or not
+				 */
+				BleManager.isPeripheralConnected(selectedPeripheral.id, []).then((res) => {
+					console.log(`${selectedPeripheral.name} is connected???`, res);
+
+					if (res == false) {
+						console.log("******not connected so going to connect...........");
+						/**
+						 * //*method to connect the peripheral with our app
+						 */
+						BleManager.connect(selectedPeripheral.id)
+							.then((res7) => {
+								// Success code
+								console.log("connect started", res7);
+								renameBlubValue()
+							})
+							.catch((error) => { console.log("error---456464454->", error); });
+					}
+					else {
+						renameBlubValue()
+					}
+				}).catch((error) => { console.log("Error--->", error) })
+			}
+			else {
+
+			}
+		}
+	}
+
+	/**
+	 * Rename the blub name
+	 * Here we have to pass 19 byte array with ascii value of string as per Hardware/Peripheral Requirement.
+	 */
+	const renameBlubValue = () => {
+
+		let renameValueToRenameBlub = renameValue
+		if (renameValueToRenameBlub.length < 19) {
+			let difference = 19 - renameValueToRenameBlub.length;
+			renameValueToRenameBlub = renameValueToRenameBlub.padEnd(19, ' ');
+		}
+
+		const valueForRenameBlub = getCharCodes(renameValueToRenameBlub);
+		BleManager.write(
+			selectedPeripheral.id,
+			serviceUUIDForWriteBlubColor,
+			characteristicUUIDForChangeBlubName,
+			valueForRenameBlub
+		).then((characteristic) => {
+			ToastAndroid.show("Blub name changed successfully.", ToastAndroid.SHORT)
+			startScan()
+			onRequestClose()
+		}).catch((error) => {
+			console.log("Error--write name->", error);
+			ToastAndroid.show("Something went wrong while writing values..", ToastAndroid.SHORT)
+			onRequestClose()
+		})
 	}
 
 	console.log("list ------>", list);
@@ -357,6 +446,7 @@ const BletoothMainScreen = (props) => {
 				}
 				contentContainerStyle={{ flexGrow: 1 }}
 			>
+
 				<FlatList
 					data={list}
 					keyExtractor={item => item.id}
@@ -438,7 +528,26 @@ const BletoothMainScreen = (props) => {
 							<View style={styles.modal}>
 								<View style={{ paddingHorizontal: 20 }}>
 									<Text style={styles.troubleShotHelp}>{"Rename Blub"}</Text>
-
+									<TextInput
+										value={renameValue}
+										onChangeText={(text) => setRenameValue(text)}
+										placeholder='Enter Name'
+										maxLength={19}
+										placeholderTextColor={"gray"}
+										style={{
+											borderWidth: 1,
+											// flex: 1,
+											color: "black", margin: 10,
+											height: 50
+										}}
+									/>
+									<TouchableOpacity style={styles.button}
+										onPress={onPressRenameDevice}
+									>
+										<Text style={styles.textInput}>
+											{"Rename"}
+										</Text>
+									</TouchableOpacity>
 								</View>
 							</View>
 						</TouchableOpacity>
@@ -538,6 +647,20 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		marginVertical: 15,
 		textAlign: "center"
+	},
+	textInput: {
+		color: "white",
+		fontSize: 14
+	},
+	button: {
+		backgroundColor: "blue",
+		paddingHorizontal: 20,
+		paddingVertical: 10,
+		borderRadius: 10,
+		marginHorizontal: 20,
+		marginVertical: 10,
+		alignItems: "center",
+		justifyContent: "center"
 	}
 });
 
